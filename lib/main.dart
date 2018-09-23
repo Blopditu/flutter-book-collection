@@ -68,18 +68,26 @@ class SearchBookPage extends StatefulWidget {
 }
 
 class _SearchBookState extends State<SearchBookPage> {
+  String searchTerm = '';
+
+  refresh(String text) {
+    setState(() {
+      searchTerm = text.replaceAll(" ", "+");
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return new NavigationWidget(
       body: _getBody(),
       title: 'Browse Books',
-      appBar: buildSearchAppBar(),
+      appBar: buildSearchAppBar(refresh),
     );
   }
 
   Widget _getBody() {
     return FutureBuilder<List<Book>>(
-        future: fetchBook('Harry+Potter'),
+        future: fetchBook(searchTerm),
         builder: (context, snapshot) {
           if (snapshot.hasData) {
             return GridView.count(
@@ -88,19 +96,26 @@ class _SearchBookState extends State<SearchBookPage> {
                   Book book = snapshot.data[index];
                   return Card(
                       child: Column(children: [
-                    Expanded(flex: 6,child:Image.network(book.thumbnail)),
-                    Expanded(flex: 1, child: Text(book.title)),
+                    Row(children: [
+                      Expanded(child: Text(book.title)),
+                      Image.network(book.thumbnail),
+                    ]),
+                    Text(
+                      book.description,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 8,
+                    )
                   ]));
                 }));
           } else if (snapshot.hasError) {
-            return Text("${snapshot.error}");
+            return Center(child: Text('Search for Books!'));
           }
           return Center(child: CircularProgressIndicator());
         });
   }
 }
 
-PreferredSize buildSearchAppBar() {
+PreferredSize buildSearchAppBar(Function(String term) notifyParent) {
   return PreferredSize(
       preferredSize: Size.fromHeight(56.0),
       child: Builder(
@@ -116,10 +131,10 @@ PreferredSize buildSearchAppBar() {
                   padding: EdgeInsets.fromLTRB(10.0, 30.0, 10.0, 10.0),
                   child: Card(
                       margin: EdgeInsets.all(0.0),
-                      child: _buildSearchAppBarChild(context))))));
+                      child: _buildSearchAppBarChild(context, notifyParent))))));
 }
 
-Widget _buildSearchAppBarChild(BuildContext context) {
+Widget _buildSearchAppBarChild(BuildContext context, Function(String term) notifyParent) {
   var textController = TextEditingController();
 
   return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -139,7 +154,7 @@ Widget _buildSearchAppBarChild(BuildContext context) {
     IconButton(
         icon: Icon(Icons.search),
         onPressed: () {
-          fetchBook(textController.text).then((p) {});
+          notifyParent(textController.text);
         })
   ]);
 }
@@ -183,10 +198,9 @@ class Book {
         title: json['title'],
         authors: new List<String>.from(authors),
         pageCount: json['pageCount'],
-        description: json['description'],
-        thumbnail: json['imageLinks'] != null
-            ? json['imageLinks']['thumbnail']
-            : '');
+        description: json['description'] != null ? json['description'] : '',
+        thumbnail:
+            json['imageLinks'] != null ? json['imageLinks']['thumbnail'] : '');
   }
 }
 
@@ -262,4 +276,3 @@ class NavigationState extends State<NavigationWidget> {
     ));
   }
 }
-
